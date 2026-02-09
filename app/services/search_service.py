@@ -9,7 +9,7 @@ logger = logging.logger
 
 class SearchService:
     def __init__(self):
-        self.provider = settings.SEARCH_PROVIDER.lower()
+        self.provider = settings.SEARCH_PROVIDER.lower() if settings.SEARCH_PROVIDER else "none"
         self.max_results = settings.MAX_SEARCH_RESULTS
 
     async def search(self, query: str) -> List[SearchResult]:

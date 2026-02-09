@@ -1,5 +1,6 @@
 import logging
 import sys
+import os
 from app.config import settings
 
 def setup_logging():

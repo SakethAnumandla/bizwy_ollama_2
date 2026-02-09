@@ -16,53 +16,48 @@ class EnrichmentService:
         
         try:
             # 1. Search Query construction
-            query = f"{request.product_name}"
-            if request.brand:
-                query += f" {request.brand}"
-            if request.model:
-                query += f" {request.model}"
+            from app.config import settings
             
-            # 2. Perform Web Search
-            logger.info(f"Calling search_service.search with query: '{query}'")
+            search_results = []
+            valid_content = []
             
-            search_results = await search_service.search(query)
-            
-            logger.info(f"Search returned {len(search_results) if search_results else 0} results")
-            
-            if not search_results:
-                return EnrichmentResponse(
-                    success=False,
-                    product_name=request.product_name,
-                    error="No search results found",
-                    processing_time=time.time() - start_time
-                )
-            
-            # 3. Scrape Top Results (e.g., top 3-4 deep scrape)
-            # Use asyncio.gather for parallel scraping
-            scrape_tasks = []
-            sources = []
-            
-            # Filter results to avoid generic pages if possible (e.g. Amazon listing vs generic search page)
-            # For now, just take top 3 results
-            results_to_scrape = search_results[:3]
-            
-            for result in results_to_scrape:
-                scrape_tasks.append(scraper_service.extract_content(result.url))
-                sources.append(SourceReference(url=result.url, title=result.title, relevance_score=1.0 - (result.position * 0.1)))
-
-            scraped_content = await asyncio.gather(*scrape_tasks, return_exceptions=True)
-            
-            # Filter failed scrapes
-            valid_content = [c for c in scraped_content if c and not isinstance(c, Exception)]
-            
-            if not valid_content:
-                return EnrichmentResponse(
-                    success=False,
-                    product_name=request.product_name,
-                    error="Failed to extract content from search results",
-                    search_results_count=len(search_results),
-                    processing_time=time.time() - start_time
-                )
+            # Check if search is enabled
+            if settings.SEARCH_PROVIDER and settings.SEARCH_PROVIDER.lower() != "none":
+                query = f"{request.product_name}"
+                if request.brand:
+                    query += f" {request.brand}"
+                if request.model:
+                    query += f" {request.model}"
+                
+                # 2. Perform Web Search
+                logger.info(f"Calling search_service.search with query: '{query}'")
+                
+                search_results = await search_service.search(query)
+                
+                logger.info(f"Search returned {len(search_results) if search_results else 0} results")
+                
+                if search_results:
+                    # 3. Scrape Top Results (e.g., top 3-4 deep scrape)
+                    # Use asyncio.gather for parallel scraping
+                    scrape_tasks = []
+                    sources = []
+                    
+                    # Filter results to avoid generic pages if possible (e.g. Amazon listing vs generic search page)
+                    # For now, just take top 3 results
+                    results_to_scrape = search_results[:3]
+                    
+                    for result in results_to_scrape:
+                        scrape_tasks.append(scraper_service.extract_content(result.url))
+                        sources.append(SourceReference(url=result.url, title=result.title, relevance_score=1.0 - (result.position * 0.1)))
+        
+                    scraped_content = await asyncio.gather(*scrape_tasks, return_exceptions=True)
+                    
+                    # Filter failed scrapes
+                    valid_content = [c for c in scraped_content if c and not isinstance(c, Exception)]
+                else:
+                    logger.warning("Search returned no results, proceeding to LLM generation only")
+            else:
+                logger.info("Search provider not configured, skipping search and using LLM generation only")
 
             # 4. Synthesize with LLM
             enriched_data = await openai_service.synthesize_product_data(

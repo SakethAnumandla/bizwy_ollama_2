@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     OPENAI_MODEL_NAME: str = "llama3"
     
     # Search
-    SEARCH_PROVIDER: str = "duckduckgo"
+    SEARCH_PROVIDER: Optional[str] = None # None = LLM only, or "duckduckgo", "serpapi", etc.
     SERPAPI_KEY: Optional[str] = None
     BRAVE_API_KEY: Optional[str] = None
     GOOGLE_SEARCH_API_KEY: Optional[str] = None

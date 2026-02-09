@@ -26,32 +26,42 @@ class OpenAIService:
         """
         Synthesize structured product data from search results using LLM.
         """
-        if not search_results:
-            raise ValueError("No search results provided for synthesis")
-
         # Prepare context from search results
         context_text = ""
-        for i, result in enumerate(search_results):
-            context_text += f"\n--- Source {i+1}: {result.url} ---\n"
-            context_text += f"Title: {result.title}\n"
-            context_text += f"Content: {result.text_content[:2000]}...\n" # Truncate to avoid context limit
-
-        system_prompt = """You are a precise Product Information Specialist. Your task is to extract and synthesize structured product data from the provided web search results.
-        
-        RULES:
-        1. ONLY use information found in the provided sources. Do not hallucinate features.
-        2. If information is missing (e.g., price), explicitly state it or leave it null.
-        3. Output MUST be valid JSON matching the specified schema.
-        4. Focus on technical specifications, key features, and marketing benefits.
-        5. Create a SEO-optimized title and description based on the finding.
-        """
+        if search_results:
+            for i, result in enumerate(search_results):
+                context_text += f"\n--- Source {i+1}: {result.url} ---\n"
+                context_text += f"Title: {result.title}\n"
+                context_text += f"Content: {result.text_content[:2000]}...\n" # Truncate to avoid context limit
+            
+            system_prompt = """You are a precise Product Information Specialist. Your task is to extract and synthesize structured product data from the provided web search results.
+            
+            RULES:
+            1. ONLY use information found in the provided sources. Do not hallucinate features.
+            2. If information is missing (e.g., price), explicitly state it or leave it null.
+            3. Output MUST be valid JSON matching the specified schema.
+            4. Focus on technical specifications, key features, and marketing benefits.
+            5. Create a SEO-optimized title and description based on the finding.
+            """
+        else:
+            # Fallback to pure generation if no search results provided
+            logger.info("No search results provided. Using LLM internal knowledge for generation.")
+            system_prompt = """You are a knowledgeable Product Information Specialist. Your task is to generate structured product data based on your internal knowledge.
+            
+            RULES:
+            1. Provide accurate and factual information based on your training data.
+            2. If the product is fictional or unknown, provide a best-effort realistic representation or state limitations in the description.
+            3. Output MUST be valid JSON matching the specified schema.
+            4. Focus on technical specifications, key features, and marketing benefits.
+            5. Create a SEO-optimized title and description.
+            """
 
         user_prompt = f"""
         Product Name: {product_name}
         Additional Context: {context if context else 'None'}
         
         Search Results:
-        {context_text}
+        {context_text if context_text else "No external search results available. Please generate data based on your internal knowledge."}
         
         Please synthesize this information into the following JSON structure:
         {{
@@ -76,7 +86,7 @@ class OpenAIService:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.3, # Low temperature for factual extraction
+                temperature=0.7 if not search_results else 0.3, # Higher temp for generation, lower for extraction
                 response_format={"type": "json_object"}
             )
             

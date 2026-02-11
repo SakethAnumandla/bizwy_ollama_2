@@ -1,0 +1,9 @@
+# Render Blueprint: bind to 0.0.0.0 and $PORT so the service is reachable
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: bizwy-ollama-2-1
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health

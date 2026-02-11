@@ -54,6 +54,28 @@ class EnrichmentResponse(BaseModel):
     cached: bool = Field(default=False, description="Whether result was cached")
     error: Optional[str] = Field(None, description="Error message if failed")
 
+
+class BatchEnrichmentRequest(BaseModel):
+    """Request to enrich multiple products in one call"""
+    model_config = {"extra": "ignore"}
+
+    products: List[EnrichmentRequest] = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="List of products to enrich (1–50 items)",
+    )
+
+
+class BatchEnrichmentResponse(BaseModel):
+    """Response for batch enrichment"""
+    results: List[EnrichmentResponse] = Field(..., description="Enrichment result per product")
+    total: int = Field(..., description="Total products in request")
+    succeeded: int = Field(..., description="Number of successful enrichments")
+    failed: int = Field(..., description="Number of failed enrichments")
+    total_processing_time: float = Field(0.0, description="Total wall-clock time in seconds")
+
+
 # --- Scraper Models ---
 
 class ProductContent(BaseModel):

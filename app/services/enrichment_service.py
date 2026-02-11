@@ -20,6 +20,7 @@ class EnrichmentService:
             
             search_results = []
             valid_content = []
+            sources = []
             
             # Check if search is enabled
             if settings.SEARCH_PROVIDER and settings.SEARCH_PROVIDER.lower() != "none":
@@ -56,8 +57,10 @@ class EnrichmentService:
                     valid_content = [c for c in scraped_content if c and not isinstance(c, Exception)]
                 else:
                     logger.warning("Search returned no results, proceeding to LLM generation only")
+                    sources = []
             else:
                 logger.info("Search provider not configured, skipping search and using LLM generation only")
+                sources = []
 
             # 4. Synthesize with LLM
             enriched_data = await openai_service.synthesize_product_data(
@@ -69,7 +72,6 @@ class EnrichmentService:
             # 5. Construct Response
             processing_time = time.time() - start_time
             logger.info(f"Enrichment completed in {processing_time:.2f}s")
-            
             return EnrichmentResponse(
                 success=True,
                 product_name=request.product_name,
